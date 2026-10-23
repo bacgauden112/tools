@@ -105,11 +105,27 @@ async function api(request, env, rest) {
 }
 
 /* ---------------- Xác thực ---------------- */
+// Tìm mật khẩu kể cả khi tên biến bị gõ lệch hoa/thường hoặc thừa dấu cách.
+function adminPassword(env) {
+  if (typeof env.ADMIN_PASSWORD === 'string' && env.ADMIN_PASSWORD) return env.ADMIN_PASSWORD;
+  const key = Object.keys(env).find((k) => k.trim().toUpperCase() === 'ADMIN_PASSWORD');
+  return key && typeof env[key] === 'string' ? env[key] : '';
+}
+
 async function checkAuth(request, env) {
-  if (!env.ADMIN_PASSWORD) return json({ error: 'Chưa đặt mật khẩu ADMIN_PASSWORD cho Worker.' }, 503);
+  const expected = adminPassword(env);
+  if (!expected) {
+    // Chỉ liệt kê TÊN biến (không lộ giá trị) để dễ biết secret đang bị đặt nhầm ở đâu.
+    const names = Object.keys(env).filter((k) => typeof env[k] === 'string');
+    return json({
+      error: 'Worker không thấy biến ADMIN_PASSWORD lúc chạy. ' +
+        (names.length ? 'Các biến Worker đang có: ' + names.join(', ') + '.' : 'Worker hiện không có biến/secret nào.') +
+        ' Hãy thêm ở Settings → Variables and Secrets (không phải mục Build), Type = Secret.',
+    }, 503);
+  }
   const header = request.headers.get('Authorization') || '';
   const given = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (given && (await safeEqual(given, env.ADMIN_PASSWORD))) return null;
+  if (given && (await safeEqual(given, expected))) return null;
   await new Promise((r) => setTimeout(r, 700)); // làm chậm việc dò mật khẩu
   return json({ error: 'Sai mật khẩu' }, 401);
 }

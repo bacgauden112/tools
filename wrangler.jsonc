@@ -15,5 +15,7 @@
       "id": "b99e9e5f2c5248b0926ced65bce124c5"
     }
   ],
+  // Không xoá biến đặt trên Dashboard khi deploy từ GitHub.
+  "keep_vars": true,
   "observability": { "enabled": true }
 }
