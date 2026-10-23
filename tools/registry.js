@@ -14,10 +14,10 @@ export const tools = [
   {
     id: 'qr',
     name: 'Tạo mã QR',
-    desc: 'Tạo QR cho link, văn bản hoặc Wi-Fi. Đổi màu, kích thước, tải PNG hoặc SVG.',
+    desc: 'Tạo QR tĩnh hoặc động (đổi link sau khi đã in) cho link, văn bản, Wi-Fi. Tải PNG hoặc SVG.',
     group: 'media',
     icon: 'qr',
-    keywords: ['qr code', 'wifi', 'ma qr'],
+    keywords: ['qr code', 'wifi', 'ma qr', 'qr dong', 'dynamic', 'link ngan'],
     load: () => import('./qr.js'),
   },
   {

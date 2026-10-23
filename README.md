@@ -6,12 +6,24 @@ Trang công cụ cá nhân chạy hoàn toàn trong trình duyệt. Không có b
 
 | Tool | File | Đường dẫn |
 |---|---|---|
-| Tạo mã QR (link, văn bản, Wi-Fi) | `tools/qr.js` | `#qr` |
+| Tạo mã QR tĩnh/động (link, văn bản, Wi-Fi) | `tools/qr.js` | `#qr` |
 | Nén & đổi cỡ ảnh | `tools/image.js` | `#nen-anh` |
 | Định dạng JSON | `tools/json.js` | `#json` |
 | Base64 & URL | `tools/encode.js` | `#ma-hoa` |
 | Mật khẩu & UUID | `tools/password.js` | `#mat-khau` |
 | Đổi Unix timestamp | `tools/timestamp.js` | `#thoi-gian` |
+
+## QR động
+
+QR động chứa link ngắn `https://tools.anhdq1102.workers.dev/go/<tên-ngắn>`. Link này chuyển hướng theo file `_redirects`, nên đổi đích không cần in lại mã.
+
+1. Trong tool QR chọn **Link / văn bản → Động**, đặt tên ngắn và link đích.
+2. Bấm **Mở _redirects trên GitHub**, dán dòng tool gợi ý (ví dụ `/go/menu  https://...  302`), rồi Commit.
+3. Khoảng 1 phút sau, trạng thái chuyển thành **Đang hoạt động**. Tải ảnh QR về dùng.
+4. Muốn đổi đích: sửa link ở dòng đó trong `_redirects`, rồi commit.
+
+Không xoá dòng của mã đã in. QR Wi-Fi luôn là QR tĩnh.
+Đổi tên miền: sửa `SITE_URL` trong `assets/config.js`. Nhớ giữ tên miền cũ chạy song song nếu đã in mã với tên miền đó.
 
 ## Thêm một tool mới
 
@@ -44,18 +56,9 @@ npx serve .
 python3 -m http.server 8000
 ```
 
-## Deploy lên Cloudflare Pages
+## Deploy
 
-1. Vào Cloudflare Dashboard → **Workers & Pages** → **Create** → tab **Pages** → **Connect to Git**.
-2. Chọn repo `bacgauden112/tools`.
-3. Cấu hình build:
-   - Framework preset: **None**
-   - Build command: *(để trống)*
-   - Build output directory: `/`
-4. Bấm **Save and Deploy**. Trang sẽ có địa chỉ dạng `tools-xxx.pages.dev`.
-5. (Tuỳ chọn) Tab **Custom domains** để gắn tên miền riêng.
-
-Mỗi lần push lên nhánh `main`, Cloudflare tự build lại. Push lên nhánh khác sẽ tạo một link preview riêng để thử trước.
+Trang đang chạy tại **https://tools.anhdq1102.workers.dev**, Cloudflare kết nối thẳng với repo này. Mỗi lần push lên `main`, Cloudflare tự deploy lại. Các file `_headers` và `_redirects` được Cloudflare đọc trực tiếp.
 
 ## Cấu trúc
 
@@ -66,5 +69,7 @@ assets/app.css      giao diện, sáng/tối
 assets/icons.js     bộ icon
 tools/registry.js   DANH MỤC CÔNG CỤ, sửa ở đây khi thêm tool
 tools/*.js          mỗi file là một công cụ
-_headers            header bảo mật & cache cho Cloudflare Pages
+assets/config.js    tên miền, repo (dùng cho QR động)
+_headers            header bảo mật & cache
+_redirects          link ngắn cho QR động (/go/...)
 ```

@@ -1,0 +1,12 @@
+# =====================================================================
+#  LINK NGẮN CHO QR ĐỘNG
+#  Mỗi dòng:  /go/<tên-ngắn>   <link đích>   302
+#
+#  - Đổi đích: sửa link ở dòng tương ứng, commit. Khoảng 1 phút sau mọi QR
+#    đã in sẽ trỏ sang đích mới, không cần in lại.
+#  - Luôn dùng 302 (tạm thời) để trình duyệt không ghi nhớ đích cũ.
+#  - Tên ngắn chỉ gồm chữ thường không dấu, số và dấu gạch ngang.
+#  - Không xoá dòng của QR đã in, nếu link chết thì trỏ nó sang trang khác.
+# =====================================================================
+
+/go/github   https://github.com/bacgauden112/tools   302
