@@ -11,4 +11,5 @@ Khi người dùng muốn thêm tool mới:
 - Thư viện ngoài: `ctx.loadScript()` từ jsDelivr, ghim đúng phiên bản.
 - Cập nhật bảng công cụ trong README.md.
 - Site chạy tại https://tools.anhdq1102.workers.dev (Cloudflare, nối Git). Tên miền nằm trong `assets/config.js`.
-- QR động dùng `_redirects` (`/go/<slug>  <đích>  302`). Không xoá dòng cũ trong đó trừ khi người dùng yêu cầu.
+- QR động: đích lưu trong KV (binding `LINKS`), API ở `worker/index.js` (`/go/<slug>`, `/api/links`, mật khẩu secret `ADMIN_PASSWORD`). `_redirects` là cách cũ, vẫn được ưu tiên trước KV; không xoá dòng trong đó trừ khi người dùng yêu cầu.
+- Không thể chạy wrangler ở đây; test Worker bằng cách import `worker/index.js` trong Node với KV giả.

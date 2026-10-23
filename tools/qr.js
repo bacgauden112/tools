@@ -1,12 +1,10 @@
 // Tạo mã QR tĩnh hoặc động. Thư viện qrcode-generator được tải từ CDN khi mở tool.
-// QR động = QR chứa link ngắn SITE_URL/go/<tên>, chuyển hướng qua file _redirects.
-import { SITE_URL, REPO, BRANCH, SHORT_PREFIX } from '../assets/config.js';
+// QR động = QR chứa link ngắn SITE_URL/go/<tên>; đích lưu trong KV qua /api/links.
+import { SHORT_PREFIX } from '../assets/config.js';
+import { api, getPassword, setPassword, loginForm, shortUrl as shortOf, slugify } from '../assets/links-api.js';
 
 const LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
 
-const slugify = (s) =>
-  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
-    .replace(/[^a-z0-9-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
 
 export default async function mount(root, { loadScript, download, copy, toast, escapeHtml }) {
   root.innerHTML = `
@@ -34,14 +32,15 @@ export default async function mount(root, { loadScript, download, copy, toast, e
             </div>
 
             <div data-type-pane="dynamic" class="stack" hidden>
+              <div id="qr-auth" class="stack" hidden style="background:var(--sunk);border-radius:8px;padding:12px 14px"></div>
               <label class="field"><span>Tên ngắn</span>
                 <div style="display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
-                  <span class="mono note" style="display:flex;align-items:center;padding:0 10px;background:var(--sunk);border-right:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(SHORT_PREFIX)}</span>
-                  <input id="qr-slug" class="input mono" style="border:0;border-radius:0;height:36px" value="github" autocomplete="off" spellcheck="false">
+                  <span class="mono note" style="display:flex;align-items:center;padding:0 10px;background:var(--sunk);border-right:1px solid var(--line);white-space:nowrap">${escapeHtml(SHORT_PREFIX)}</span>
+                  <input id="qr-slug" class="input mono" style="border:0;border-radius:0;height:36px" placeholder="menu" autocomplete="off" spellcheck="false">
                 </div>
               </label>
               <label class="field"><span>Link đích (có thể đổi sau này)</span>
-                <input id="qr-target" class="input" type="url" value="https://github.com/bacgauden112/tools" placeholder="https://…"></label>
+                <input id="qr-target" class="input" type="url" placeholder="https://…"></label>
               <p id="qr-dyn-err" class="err" hidden></p>
 
               <div class="stack" style="gap:8px;background:var(--sunk);border-radius:8px;padding:12px 14px">
@@ -53,16 +52,11 @@ export default async function mount(root, { loadScript, download, copy, toast, e
                   <code id="qr-short" class="mono" style="flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px"></code>
                   <button id="qr-copy-short" class="ghost sm" type="button">Chép</button>
                 </div>
-                <span class="label" style="margin-top:6px">Dòng cần có trong file <span class="mono">_redirects</span></span>
-                <div class="row" style="gap:8px;flex-wrap:nowrap">
-                  <code id="qr-line" class="mono" style="flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px"></code>
-                  <button id="qr-copy-line" class="ghost sm" type="button">Chép</button>
-                </div>
+                <p id="qr-current" class="note" style="font-size:12.5px;overflow-wrap:anywhere" hidden></p>
                 <div class="row" style="margin-top:4px">
-                  <a id="qr-edit" class="btn sm" target="_blank" rel="noopener">Mở _redirects trên GitHub</a>
-                  <button id="qr-check" class="ghost sm" type="button">Kiểm tra lại</button>
+                  <button id="qr-save" class="btn sm" type="button">Lưu & kích hoạt</button>
+                  <a class="ghost sm" href="#link-dong">Tất cả link động</a>
                 </div>
-                <p class="note" style="font-size:12.5px">Thêm dòng trên (hoặc sửa link đích ở dòng cũ) rồi bấm Commit. Khoảng 1 phút sau link ngắn hoạt động. Muốn đổi đích về sau, chỉ cần sửa dòng đó, không cần in lại QR.</p>
               </div>
             </div>
           </div>
@@ -146,13 +140,14 @@ export default async function mount(root, { loadScript, download, copy, toast, e
       root.querySelectorAll('[data-type-pane]').forEach((p) => (p.hidden = p.dataset.typePane !== type));
       $('#qr-type-note').textContent = notes[type];
       render();
-      if (type === 'dynamic') checkLater(0);
+      if (type === 'dynamic') { showAuth(); checkLater(0); }
     })
   );
   $('#qr-type-note').textContent = notes.static;
 
   const slug = () => slugify($('#qr-slug').value);
-  const shortUrl = () => SITE_URL + SHORT_PREFIX + slug();
+  const shortUrl = () => shortOf(slug());
+  let existing = null; // link đang lưu trên máy chủ cho tên ngắn hiện tại
 
   function updateDynamic() {
     const s = slug();
@@ -160,41 +155,92 @@ export default async function mount(root, { loadScript, download, copy, toast, e
     const err = $('#qr-dyn-err');
     let msg = '';
     if (!s) msg = 'Đặt một tên ngắn, ví dụ: menu, cv, khuyen-mai.';
-    else if (!/^https?:\/\/\S+\.\S+/.test(target)) msg = 'Link đích phải bắt đầu bằng http:// hoặc https://';
+    else if (target && !/^https?:\/\/\S+\.\S+/.test(target)) msg = 'Link đích phải bắt đầu bằng http:// hoặc https://';
     err.textContent = msg;
     err.hidden = !msg;
     $('#qr-short').textContent = s ? shortUrl() : '–';
-    $('#qr-line').textContent = s && !msg ? `${SHORT_PREFIX}${s}   ${target}   302` : '–';
-    $('#qr-edit').href = `https://github.com/${REPO}/edit/${BRANCH}/_redirects`;
-    return !msg;
+    return !!s;
   }
 
-  // Kiểm tra link ngắn đã có trong _redirects chưa (chỉ chạy được khi trang mở trên chính tên miền đó).
-  let checkTimer, checkSeq = 0;
-  function checkLater(ms = 600) { clearTimeout(checkTimer); checkTimer = setTimeout(check, ms); }
-  async function check() {
+  function setStatus(text, cls = 'note') {
     const st = $('#qr-status');
-    const s = slug();
-    if (!s) { st.textContent = ''; return; }
-    if (location.origin !== SITE_URL) { st.textContent = 'Kiểm tra được khi mở trang trên ' + SITE_URL.replace(/^https?:\/\//, ''); st.className = 'note'; return; }
-    const seq = ++checkSeq;
-    st.textContent = 'Đang kiểm tra…'; st.className = 'note';
-    try {
-      const r = await fetch(shortUrl(), { redirect: 'manual', cache: 'no-store' });
-      if (seq !== checkSeq) return;
-      if (r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400)) { st.textContent = '● Đang hoạt động'; st.className = 'ok'; }
-      else { st.textContent = '○ Chưa có trong _redirects'; st.className = 'err'; }
-    } catch {
-      if (seq === checkSeq) { st.textContent = 'Không kiểm tra được'; st.className = 'note'; }
-    }
-    st.style.fontSize = '12.5px';
+    st.textContent = text; st.className = cls; st.style.fontSize = '12.5px';
   }
 
-  $('#qr-slug').addEventListener('input', () => checkLater());
+  function showAuth() {
+    const box = $('#qr-auth');
+    if (getPassword()) { box.hidden = true; return true; }
+    box.hidden = false;
+    loginForm(box, () => { box.hidden = true; checkLater(0); }, { title: 'Đăng nhập để lưu link động' });
+    return false;
+  }
+
+  // Hỏi máy chủ xem tên ngắn này đã có chưa.
+  let checkTimer, checkSeq = 0;
+  function checkLater(ms = 500) { clearTimeout(checkTimer); checkTimer = setTimeout(check, ms); }
+  async function check() {
+    const s = slug();
+    const cur = $('#qr-current');
+    existing = null; cur.hidden = true;
+    $('#qr-save').textContent = 'Lưu & kích hoạt';
+    if (!s) return setStatus('');
+    if (!getPassword()) return setStatus('Cần đăng nhập để lưu');
+    const seq = ++checkSeq;
+    setStatus('Đang kiểm tra…');
+    try {
+      const d = await api('GET', '/' + s);
+      if (seq !== checkSeq) return;
+      existing = d;
+      setStatus('● Đang hoạt động', 'ok');
+      cur.innerHTML = 'Đang trỏ tới: <a target="_blank" rel="noopener"></a>';
+      cur.querySelector('a').href = d.url; cur.querySelector('a').textContent = d.url;
+      cur.hidden = false;
+      $('#qr-save').textContent = 'Cập nhật link đích';
+      if (!$('#qr-target').value.trim()) $('#qr-target').value = d.url;
+    } catch (e) {
+      if (seq !== checkSeq) return;
+      if (e.status === 404 && !e.data?.error?.includes('API')) setStatus('○ Tên mới, chưa dùng');
+      else if (e.status === 401) { setPassword(''); showAuth(); setStatus('Cần đăng nhập lại', 'err'); }
+      else setStatus(e.message, 'err');
+    }
+  }
+
+  $('#qr-save').addEventListener('click', async () => {
+    if (!showAuth()) return;
+    const s = slug();
+    const target = $('#qr-target').value.trim();
+    if (!s || !/^https?:\/\/\S+\.\S+/.test(target)) {
+      $('#qr-dyn-err').textContent = !s ? 'Đặt một tên ngắn trước.' : 'Nhập link đích bắt đầu bằng http:// hoặc https://';
+      $('#qr-dyn-err').hidden = false;
+      return;
+    }
+    const btn = $('#qr-save');
+    btn.disabled = true;
+    try {
+      const d = await api('PUT', '/' + s, { url: target, note: existing?.note || '' });
+      toast(d.isNew ? 'Đã tạo link động' : 'Đã cập nhật link đích');
+      checkLater(0);
+    } catch (e) {
+      if (e.status === 401) { setPassword(''); showAuth(); }
+      $('#qr-dyn-err').textContent = e.message; $('#qr-dyn-err').hidden = false;
+    }
+    btn.disabled = false;
+  });
+
+  $('#qr-slug').addEventListener('input', () => { $('#qr-target').value = existing && $('#qr-target').value === existing.url ? '' : $('#qr-target').value; checkLater(); });
   $('#qr-slug').addEventListener('blur', () => { $('#qr-slug').value = slug(); render(); });
-  $('#qr-check').addEventListener('click', () => checkLater(0));
   $('#qr-copy-short').addEventListener('click', () => copy(shortUrl()));
-  $('#qr-copy-line').addEventListener('click', () => copy($('#qr-line').textContent, 'Đã chép dòng _redirects'));
+
+  // Mở từ trang "Link động" với tên ngắn có sẵn.
+  try {
+    const pre = JSON.parse(sessionStorage.getItem('qr-prefill') || 'null');
+    sessionStorage.removeItem('qr-prefill');
+    if (pre?.slug) {
+      $('#qr-slug').value = pre.slug;
+      $('#qr-target').value = pre.url || '';
+      root.querySelector('[data-type="dynamic"]').click();
+    }
+  } catch {}
 
   const wifiEsc = (s) => s.replace(/([\\;,:"])/g, '\\$1');
   function payload() {

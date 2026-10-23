@@ -1,28 +1,32 @@
 # Hộp Đồ Nghề
 
-Trang công cụ cá nhân chạy hoàn toàn trong trình duyệt. Không có backend, không có bước build: chỉ là HTML, CSS và JavaScript thuần, deploy lên Cloudflare Pages.
+Trang công cụ cá nhân chạy trong trình duyệt: HTML, CSS và JavaScript thuần, không có bước build. Deploy lên Cloudflare Workers. Một Worker nhỏ (`worker/index.js`) chỉ phục vụ phần link động.
 
 ## Công cụ hiện có
 
 | Tool | File | Đường dẫn |
 |---|---|---|
 | Tạo mã QR tĩnh/động (link, văn bản, Wi-Fi) | `tools/qr.js` | `#qr` |
+| Quản lý link động | `tools/links.js` | `#link-dong` |
 | Nén & đổi cỡ ảnh | `tools/image.js` | `#nen-anh` |
 | Định dạng JSON | `tools/json.js` | `#json` |
 | Base64 & URL | `tools/encode.js` | `#ma-hoa` |
 | Mật khẩu & UUID | `tools/password.js` | `#mat-khau` |
 | Đổi Unix timestamp | `tools/timestamp.js` | `#thoi-gian` |
 
-## QR động
+## QR động & Link động
 
-QR động chứa link ngắn `https://tools.anhdq1102.workers.dev/go/<tên-ngắn>`. Link này chuyển hướng theo file `_redirects`, nên đổi đích không cần in lại mã.
+QR động chứa link ngắn `https://tools.anhdq1102.workers.dev/go/<tên-ngắn>`. Đích của link được lưu trong **Cloudflare KV**, nên đổi đích không cần in lại mã và không cần commit.
 
-1. Trong tool QR chọn **Link / văn bản → Động**, đặt tên ngắn và link đích.
-2. Bấm **Mở _redirects trên GitHub**, dán dòng tool gợi ý (ví dụ `/go/menu  https://...  302`), rồi Commit.
-3. Khoảng 1 phút sau, trạng thái chuyển thành **Đang hoạt động**. Tải ảnh QR về dùng.
-4. Muốn đổi đích: sửa link ở dòng đó trong `_redirects`, rồi commit.
+- **Tạo:** tool *Tạo mã QR* → *Động*, điền tên ngắn và link đích, bấm **Lưu & kích hoạt**. Cũng tạo được ở tool *Link động*.
+- **Đổi đích / xoá:** tool *Link động* (`#link-dong`). Đích mới có hiệu lực sau vài giây, chậm nhất khoảng 60 giây ở mọi nơi.
+- **Đăng nhập:** bằng secret `ADMIN_PASSWORD` của Worker. Mật khẩu được nhớ trong trình duyệt đã đăng nhập.
 
-Không xoá dòng của mã đã in. QR Wi-Fi luôn là QR tĩnh.
+Cấu hình phía Cloudflare:
+- KV namespace `tools-links`, gắn vào Worker với binding `LINKS`. ID nằm trong `wrangler.jsonc`.
+- Secret `ADMIN_PASSWORD`: Worker *tools* → Settings → Variables and Secrets.
+
+Dòng nào trong `_redirects` trùng tên sẽ được ưu tiên hơn KV. File này giữ lại để tương thích với các link cũ.
 Đổi tên miền: sửa `SITE_URL` trong `assets/config.js`. Nhớ giữ tên miền cũ chạy song song nếu đã in mã với tên miền đó.
 
 ## Thêm một tool mới
@@ -71,5 +75,9 @@ tools/registry.js   DANH MỤC CÔNG CỤ, sửa ở đây khi thêm tool
 tools/*.js          mỗi file là một công cụ
 assets/config.js    tên miền, repo (dùng cho QR động)
 _headers            header bảo mật & cache
-_redirects          link ngắn cho QR động (/go/...)
+_redirects          link ngắn cũ (ưu tiên hơn KV)
+assets/links-api.js gọi API link động
+worker/index.js     Worker: /go/<tên> và /api/links (KV + mật khẩu)
+wrangler.jsonc      cấu hình Worker, binding KV
+.assetsignore       file không phục vụ ra ngoài
 ```

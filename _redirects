@@ -1,5 +1,8 @@
 # =====================================================================
-#  LINK NGẮN CHO QR ĐỘNG
+#  LINK NGẮN CŨ (trước khi có KV)
+#  Link động giờ quản lý ở trang #link-dong, không cần sửa file này.
+#  Dòng ở đây được ưu tiên hơn link cùng tên trong KV.
+#
 #  Mỗi dòng:  /go/<tên-ngắn>   <link đích>   302
 #
 #  - Đổi đích: sửa link ở dòng tương ứng, commit. Khoảng 1 phút sau mọi QR

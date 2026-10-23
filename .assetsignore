@@ -1,0 +1,8 @@
+# Những file không phục vụ ra ngoài như file tĩnh
+.git
+.assetsignore
+wrangler.jsonc
+worker
+node_modules
+README.md
+CLAUDE.md

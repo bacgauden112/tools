@@ -1,0 +1,19 @@
+{
+  // Cấu hình Cloudflare Worker cho Hộp Đồ Nghề.
+  // File tĩnh ở thư mục gốc được phục vụ trực tiếp; request không khớp file nào sẽ vào worker/index.js.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tools",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "LINKS",
+      "id": "__KV_ID__"
+    }
+  ],
+  "observability": { "enabled": true }
+}

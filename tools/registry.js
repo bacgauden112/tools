@@ -21,6 +21,15 @@ export const tools = [
     load: () => import('./qr.js'),
   },
   {
+    id: 'link-dong',
+    name: 'Link động',
+    desc: 'Quản lý link ngắn của QR động: tạo mới, đổi đích, xoá. Cần đăng nhập.',
+    group: 'media',
+    icon: 'link',
+    keywords: ['qr dong', 'dynamic', 'short link', 'rut gon', 'redirect'],
+    load: () => import('./links.js'),
+  },
+  {
     id: 'nen-anh',
     name: 'Nén & đổi cỡ ảnh',
     desc: 'Giảm dung lượng ảnh, đổi sang WebP/JPEG/PNG, thu nhỏ kích thước. Xử lý nhiều ảnh cùng lúc.',
